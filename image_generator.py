@@ -1,0 +1,606 @@
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import json
+import math
+import asyncio
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from config import (ENABLE_IMAGE_EXPORT, INPUT_FILE, 
+                   OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL)
+
+
+# 每个词独立的贡献者颜色
+WORD_COLORS = [
+    '#DC2626', '#EA580C', '#D97706', '#CA8A04', '#65A30D',
+    '#16A34A', '#0D9488', '#0891B2', '#2563EB', '#7C3AED'
+]
+
+# 榜单配置 (title, key, icon, unit)
+RANKING_CONFIG = [
+    ('群聊噪音', '话痨榜', '🏆', '条'),
+    ('打字民工', '字数榜', '📝', '字'),
+    ('小作文狂', '长文王', '📖', ''),
+    ('表情狂人', '表情帝', '😂', '个'),
+    ('我的图图', '图片狂魔', '🖼️', '张'),
+    ('转发机器', '转发大师', '📦', '次'),
+    ('回复劳模', '回复狂', '💬', '次'),
+    ('回复黑洞', '被回复最多', '⭐', '次'),
+    ('艾特狂魔', '艾特狂', '📢', '次'),
+    ('人气靶子', '被艾特最多', '🎯', '次'),
+    ('链接仓鼠', '链接分享王', '🔗', '条'),
+    ('阴间作息', '深夜党', '🌙', '条'),
+    ('早八怨种', '早起鸟', '🌅', '条'),
+    ('复读机器', '复读机', '🔄', '次'),
+]
+
+
+def format_number(value):
+    """格式化数字"""
+    try:
+        return f"{int(value):,}"
+    except:
+        return str(value)
+
+
+def truncate_text(text, length=50):
+    """截断文本"""
+    if not text:
+        return ""
+    text = text.replace('\n', ' ').strip()
+    if len(text) > length:
+        return text[:length] + '...'
+    return text
+
+
+def get_avatar_url(uin):
+    """获取QQ头像URL"""
+    return f"https://q1.qlogo.cn/g?b=qq&nk={uin}&s=640"
+
+
+class AICommentGenerator:
+    """AI锐评生成器"""
+    
+    SYSTEM_PROMPT = """你是一个幽默风趣的群聊分析师，擅长用犀利又不失温度的语言点评网络热词。
+
+你的任务是为QQ群年度热词报告生成一句精辟的锐评。要求：
+1. 简短有力，15-30字为宜
+2. 可以调侃、可以感慨、可以哲理，但要有趣
+3. 结合词语本身的含义和使用场景
+4. 语气可以是：毒舌吐槽/温情感慨/哲学思考/冷幽默/谐音梗 等
+5. 不要太正经，要有网感
+
+风格参考：
+- "哈哈哈" → "快乐是假的，但敷衍是真的"
+- "牛逼" → "词汇量告急时的唯一出路"
+- "好的" → "成年人最敷衍的三个字"
+- "?" → "一个符号，十万种质疑"
+- "6" → "当代网友最高效的赞美"""
+
+    def __init__(self):
+        self.client = None
+        self._init_client()
+    
+    def _init_client(self):
+        """初始化OpenAI客户端"""
+        if not OPENAI_API_KEY or OPENAI_API_KEY == "sk-your-api-key-here":
+            print("⚠️ 未配置OpenAI API Key，将跳过AI锐评")
+            return
+        
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(
+                api_key=OPENAI_API_KEY,
+                base_url=OPENAI_BASE_URL
+            )
+        except ImportError:
+            print("⚠️ 需要安装openai库: pip install openai")
+        except Exception as e:
+            print(f"⚠️ OpenAI客户端初始化失败: {e}")
+    
+    def generate_comment(self, word, freq, samples):
+        """为单个词生成锐评"""
+        if not self.client:
+            return self._fallback_comment(word)
+        
+        # 构建用户提示
+        samples_text = '\n'.join(f'- {s[:50]}' for s in samples[:5]) if samples else '无'
+        
+        user_prompt = f"""请为这个群聊热词生成一句锐评：
+
+词语：{word}
+出现次数：{freq}次
+使用样本：
+{samples_text}
+
+直接输出锐评内容，不要加引号或其他格式。"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": self.SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=100,
+                temperature=0.9
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"   ⚠️ AI生成失败({word}): {e}")
+            return self._fallback_comment(word)
+    
+    def _fallback_comment(self, word):
+        """备用锐评"""
+        fallbacks = [
+            "群友的快乐，简单又纯粹",
+            "这个词承载了太多故事",
+            "高频出现，必有原因",
+            "群聊精华，浓缩于此",
+            "每一次使用都是一次认同",
+        ]
+        import random
+        return random.choice(fallbacks)
+    
+    def generate_batch(self, words_data):
+        """批量生成锐评"""
+        if not self.client:
+            print("⚠️ AI未启用，使用默认锐评")
+            return {w['word']: self._fallback_comment(w['word']) for w in words_data}
+        
+        print("🤖 正在生成AI锐评...")
+        comments = {}
+        for i, word_info in enumerate(words_data, 1):
+            word = word_info['word']
+            print(f"   [{i}/{len(words_data)}] {word}...", end=' ')
+            comment = self.generate_comment(
+                word, 
+                word_info['freq'], 
+                word_info.get('samples', [])
+            )
+            comments[word] = comment
+            print(f"✓")
+        
+        return comments
+
+
+class ImageGenerator:
+    """图片报告生成器"""
+    
+    def __init__(self, analyzer=None, json_path=None):
+        self.analyzer = analyzer
+        self.json_data = None
+        self.selected_words = []
+        self.ai_comments = {}
+        self.output_dir = os.path.dirname(os.path.abspath(INPUT_FILE))
+        self.template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+        
+        if json_path and os.path.exists(json_path):
+            with open(json_path, 'r', encoding='utf-8') as f:
+                self.json_data = json.load(f)
+        elif analyzer:
+            self.json_data = analyzer.export_json()
+        
+        self.enabled = ENABLE_IMAGE_EXPORT
+    
+    def display_words_for_selection(self):
+        """展示词汇供用户选择"""
+        if not self.json_data:
+            print("❌ 无数据可展示")
+            return False
+        
+        top_words = self.json_data.get('topWords', [])
+        if not top_words:
+            print("❌ 无热词数据")
+            return False
+        
+        print("\n" + "=" * 70)
+        print("📝 请从以下热词中选择 10 个作为年度热词")
+        print("=" * 70)
+        
+        page_size = 50
+        total_pages = (len(top_words) + page_size - 1) // page_size
+        current_page = 0
+        
+        while True:
+            start = current_page * page_size
+            end = min(start + page_size, len(top_words))
+            
+            print(f"\n📄 第 {current_page + 1}/{total_pages} 页 ({start + 1}-{end})")
+            print("-" * 70)
+            
+            for i in range(start, end):
+                word_info = top_words[i]
+                word = word_info['word']
+                freq = word_info['freq']
+                samples = word_info.get('samples', [])
+                
+                sample_preview = samples[0].replace('\n', ' ')[:25] + '...' if samples and len(samples[0]) > 25 else (samples[0].replace('\n', ' ') if samples else '无样本')
+                contributors = word_info.get('contributors', [])
+                contrib_str = contributors[0]['name'] if contributors else '未知'
+                
+                print(f"  {i+1:>3}. {word:<8} ({freq:>4}次) 👤{contrib_str:<10} | {sample_preview}")
+            
+            print("-" * 70)
+            print("📌 [n]下一页 [p]上一页 [v 序号]详情 [s]选择 [q]退出")
+            
+            cmd = input(">>> ").strip().lower()
+            
+            if cmd == 'n':
+                current_page = min(current_page + 1, total_pages - 1)
+            elif cmd == 'p':
+                current_page = max(current_page - 1, 0)
+            elif cmd == 's':
+                return self._get_user_selection(top_words)
+            elif cmd.startswith('v'):
+                try:
+                    idx = int(cmd[1:].strip()) - 1
+                    if 0 <= idx < len(top_words):
+                        self._show_word_detail(top_words[idx], idx + 1)
+                except:
+                    print("⚠️ 请输入有效序号")
+            elif cmd == 'q':
+                return False
+        
+        return False
+    
+    def _show_word_detail(self, word_info, idx):
+        """显示词汇详情"""
+        print(f"\n{'='*60}")
+        print(f"【{idx}】{word_info['word']} - {word_info['freq']}次")
+        print(f"{'='*60}")
+        
+        contributors = word_info.get('contributors', [])
+        if contributors:
+            print("\n👤 贡献者:")
+            max_count = contributors[0]['count']
+            for i, c in enumerate(contributors[:5], 1):
+                bar = '█' * int(c['count'] / max_count * 20)
+                print(f"   {i}. {c['name']:<12} {bar} {c['count']}次")
+        
+        samples = word_info.get('samples', [])
+        if samples:
+            print(f"\n📋 样本:")
+            for i, s in enumerate(samples[:5], 1):
+                print(f"   {i}. {s.replace(chr(10), ' ')[:60]}")
+        
+        input("\n按回车继续...")
+    
+    def _get_user_selection(self, top_words):
+        """获取用户选择"""
+        print("\n" + "=" * 60)
+        print("📝 输入10个序号 (空格/逗号分隔，支持范围如1-5)")
+        
+        while True:
+            selection = input("\n>>> ").strip()
+            if not selection:
+                continue
+            
+            indices = []
+            for part in selection.replace(',', ' ').replace('，', ' ').split():
+                try:
+                    if '-' in part:
+                        start, end = map(int, part.split('-'))
+                        indices.extend(range(start - 1, end))
+                    else:
+                        indices.append(int(part) - 1)
+                except:
+                    pass
+            
+            indices = [i for i in indices if 0 <= i < len(top_words)]
+            indices = list(dict.fromkeys(indices))  # 去重保序
+            
+            if len(indices) < 10:
+                print(f"⚠️ 需要10个，当前{len(indices)}个: {[i+1 for i in indices]}")
+                continue
+            
+            indices = indices[:10]
+            self.selected_words = [top_words[i] for i in indices]
+            
+            print("\n✅ 已选:")
+            for i, w in enumerate(self.selected_words, 1):
+                print(f"   {i}. {w['word']} ({w['freq']}次)")
+            
+            if input("\n确认? [Y/n]: ").strip().lower() in ('', 'y', 'yes'):
+                return True
+    
+    def _prepare_template_data(self):
+        """准备模板数据"""
+        max_freq = max(w['freq'] for w in self.selected_words)
+        min_freq = min(w['freq'] for w in self.selected_words)
+        
+        def calc_bar_height(freq):
+            if max_freq == min_freq:
+                return 80
+            normalized = (freq - min_freq) / (max_freq - min_freq)
+            return 25 + math.sqrt(normalized) * 75
+        
+        processed_words = []
+        for idx, word_info in enumerate(self.selected_words):
+            contributors = word_info.get('contributors', [])
+            total = word_info['freq']
+            
+            # 每个词独立分配颜色给其贡献者
+            segments = []
+            accounted = 0
+            word_contributor_colors = {}
+            
+            for i, c in enumerate(contributors[:5]):
+                color = WORD_COLORS[i % len(WORD_COLORS)]
+                word_contributor_colors[c['name']] = color
+                percent = (c['count'] / total * 100) if total > 0 else 0
+                segments.append({
+                    'name': c['name'],
+                    'uin': c.get('uin', ''),
+                    'count': c['count'],
+                    'percent': percent,
+                    'color': color
+                })
+                accounted += c['count']
+            
+            # 其他
+            if accounted < total:
+                other = total - accounted
+                segments.append({
+                    'name': '其他',
+                    'uin': '',
+                    'count': other,
+                    'percent': (other / total * 100),
+                    'color': '#6B7280'
+                })
+            
+            # 图例（该词的贡献者）
+            legend = []
+            for c in contributors[:3]:
+                legend.append({
+                    'name': c['name'], 
+                    'color': word_contributor_colors.get(c['name'], '#6B7280')
+                })
+            while len(legend) < 3:
+                legend.append({'name': '', 'color': 'transparent'})            
+            # 主要贡献者文本
+            contrib_text = '、'.join(c['name'] for c in contributors[:3]) if contributors else '未知'
+            
+            # AI锐评
+            ai_comment = self.ai_comments.get(word_info['word'], '')
+            
+            processed_words.append({
+                'word': word_info['word'],
+                'freq': word_info['freq'],
+                'bar_height': calc_bar_height(word_info['freq']),
+                'segments': segments,
+                'legend': legend,
+                'samples': word_info.get('samples', []),
+                'contributors_text': contrib_text,
+                'top_contributor': contributors[0] if contributors else None,
+                'ai_comment': ai_comment,
+                'color': WORD_COLORS[idx % len(WORD_COLORS)]
+            })
+        
+        # 榜单数据
+        rankings_data = self.json_data.get('rankings', {})
+        processed_rankings = []
+        
+        for title, key, icon, unit in RANKING_CONFIG:
+            data = rankings_data.get(key, [])
+            if not data:
+                continue
+            
+            first = data[0] if data else None
+            others = data[1:5] if len(data) > 1 else []
+            
+            processed_rankings.append({
+                'title': title,
+                'icon': icon,
+                'unit': unit,
+                'first': {
+                    'name': first.get('name', '未知'),
+                    'uin': first.get('uin', ''),
+                    'value': first.get('value', 0),
+                    'avatar': get_avatar_url(first.get('uin', '')) if first else ''
+                } if first else None,
+                'others': [
+                    {
+                        'name': item.get('name', '未知'),
+                        'value': item.get('value', 0),
+                        'uin': item.get('uin', ''),
+                        'avatar': get_avatar_url(item.get('uin', ''))
+                    }
+                    for item in others
+                ]
+            })
+        
+        # 24小时分布
+        hour_dist = self.json_data.get('hourDistribution', {})
+        max_hour = max((int(hour_dist.get(str(h), 0)) for h in range(24)), default=1)
+        peak_hour = max(range(24), key=lambda h: int(hour_dist.get(str(h), 0)))
+        
+        hour_data = []
+        for h in range(24):
+            count = int(hour_dist.get(str(h), 0))
+            height = max((count / max_hour * 100) if max_hour > 0 else 0, 3)
+            hour_data.append({'hour': h, 'count': count, 'height': height})
+        
+        return {
+            'chat_name': self.json_data.get('chatName', '未知群聊'),
+            'message_count': self.json_data.get('messageCount', 0),
+            'selected_words': processed_words,
+            'rankings': processed_rankings,
+            'hour_data': hour_data,
+            'peak_hour': peak_hour
+        }
+    
+    def _generate_ai_comments(self):
+        """生成AI锐评"""
+        print("\n是否生成AI锐评?")
+        print("  1. 是，调用AI生成")
+        print("  2. 否，使用默认文案")
+        
+        choice = input("请选择 [1/2]: ").strip()
+        
+        ai_gen = AICommentGenerator()
+        if choice == '1' and ai_gen.client:
+            self.ai_comments = ai_gen.generate_batch(self.selected_words)
+        else:
+            self.ai_comments = {w['word']: ai_gen._fallback_comment(w['word']) 
+                              for w in self.selected_words}
+    
+    def generate_html(self):
+        """生成HTML"""
+        if not self.selected_words:
+            print("❌ 未选择热词")
+            return None
+        
+        if not os.path.exists(self.template_dir):
+            os.makedirs(self.template_dir)
+        
+        template_path = os.path.join(self.template_dir, 'report_template.html')
+        if not os.path.exists(template_path):
+            print(f"❌ 模板不存在: {template_path}")
+            return None
+        
+        env = Environment(
+            loader=FileSystemLoader(self.template_dir),
+            autoescape=select_autoescape(['html'])
+        )
+        env.filters['format_number'] = format_number
+        env.filters['truncate_text'] = truncate_text
+        env.filters['avatar_url'] = get_avatar_url
+        
+        template = env.get_template('report_template.html')
+        data = self._prepare_template_data()
+        html_content = template.render(**data)
+        
+        safe_name = self.json_data.get('chatName', '未知').replace('/', '_').replace('\\', '_')
+        html_path = os.path.join(self.output_dir, f"{safe_name}_年度热词报告.html")
+        
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        print(f"✅ HTML: {html_path}")
+        return html_path
+    
+    async def _html_to_image_async(self, html_path, output_path):
+        """异步转图片 - 高分辨率"""
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            print("❌ 需要: pip install playwright && playwright install chromium")
+            return None
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            # 使用 device_scale_factor=3 提高分辨率（3倍）
+            page = await browser.new_page(
+                viewport={'width': 450, 'height': 800},
+                device_scale_factor=3  # 高清截图
+            )
+            await page.goto(f'file://{os.path.abspath(html_path)}')
+            await page.wait_for_timeout(2000)
+            height = await page.evaluate('document.body.scrollHeight')
+            await page.set_viewport_size({'width': 450, 'height': height + 50})
+            await page.wait_for_timeout(500)
+            await page.screenshot(path=output_path, full_page=True)
+            await browser.close()
+        
+        return output_path
+
+    
+    def html_to_image(self, html_path):
+        """转图片"""
+        safe_name = self.json_data.get('chatName', '未知').replace('/', '_').replace('\\', '_')
+        output_path = os.path.join(self.output_dir, f"{safe_name}_年度热词报告.png")
+        
+        print("🖼️ 转换为图片...")
+        try:
+            result = asyncio.run(self._html_to_image_async(html_path, output_path))
+            if result:
+                print(f"✅ 图片: {output_path}")
+                return output_path
+        except Exception as e:
+            print(f"⚠️ 转换失败: {e}")
+        
+        return None
+    
+    def generate(self, auto_select=False):
+        """生成报告"""
+        if not self.json_data:
+            print("❌ 无数据")
+            return None, None
+        
+        if auto_select:
+            self.selected_words = self.json_data.get('topWords', [])[:10]
+            print(f"📝 自动选择前10个热词")
+        else:
+            if not self.display_words_for_selection():
+                return None, None
+        
+        if not self.selected_words:
+            return None, None
+        
+        # AI锐评
+        self._generate_ai_comments()
+        
+        print("\n🎨 生成报告...")
+        html_path = self.generate_html()
+        if not html_path:
+            return None, None
+        
+        print("\n转换为图片?")
+        print("  1. 是")
+        print("  2. 否，只要HTML")
+        
+        img_path = None
+        if input("[1/2]: ").strip() == '1':
+            img_path = self.html_to_image(html_path)
+        
+        return html_path, img_path
+
+
+def interactive_generate(json_path=None, analyzer=None):
+    gen = ImageGenerator(analyzer=analyzer, json_path=json_path)
+    gen.enabled = True
+    return gen.generate(auto_select=False)
+
+
+def auto_generate(json_path=None, analyzer=None):
+    gen = ImageGenerator(analyzer=analyzer, json_path=json_path)
+    gen.enabled = True
+    return gen.generate(auto_select=True)
+
+
+if __name__ == '__main__':
+    import glob
+    
+    print("=" * 60)
+    print("🖼️  报告生成器 ")
+    print("=" * 60)
+    
+    if len(sys.argv) > 1:
+        json_path = sys.argv[1]
+    else:
+        json_files = glob.glob('*_分析结果.json')
+        if not json_files:
+            print("❌ 未找到JSON文件")
+            sys.exit(1)
+        if len(json_files) == 1:
+            json_path = json_files[0]
+        else:
+            for i, f in enumerate(json_files, 1):
+                print(f"  {i}. {f}")
+            json_path = json_files[int(input("选择: ")) - 1]
+    
+    print(f"\n📂 {json_path}")
+    
+    mode = input("\n1.交互选词 2.自动前10 [1/2]: ").strip()
+    
+    if mode == '2':
+        html_path, img_path = auto_generate(json_path=json_path)
+    else:
+        html_path, img_path = interactive_generate(json_path=json_path)
+    
+    print("\n" + "=" * 60)
+    if html_path:
+        print(f"📄 {html_path}")
+    if img_path:
+        print(f"🖼️ {img_path}")
