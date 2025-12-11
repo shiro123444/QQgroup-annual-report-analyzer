@@ -67,8 +67,9 @@ def analyze():
     except Exception:
         options = {}
 
-    # 默认行为：禁用交互式生成
-    options.setdefault("ENABLE_IMAGE_EXPORT", False)
+    # 默认行为：尊重 config，允许前端覆盖
+    options.setdefault("ENABLE_IMAGE_EXPORT", config.ENABLE_IMAGE_EXPORT)
+    options.setdefault("GENERATE_PNG", False)
 
     base_dir = os.path.join(PROJECT_ROOT, "runtime_outputs")
     os.makedirs(base_dir, exist_ok=True)

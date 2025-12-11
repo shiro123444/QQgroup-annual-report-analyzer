@@ -2,6 +2,8 @@
 
 一个用于分析QQ群聊记录并生成年度热词报告的工具。支持热词发现、趣味统计、可视化报告生成等功能。前后端一体：上传 qq-chat-exporter 导出的 JSON，即可在 Web 端完成分析，也可命令行直接运行。
 
+在线网站工具正在制作中，敬请期待...
+
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
@@ -40,10 +42,7 @@ pip install playwright
 playwright install chromium
 ```
 
-## 🚀 使用方法
-
-### 获取群聊数据
-推荐使用 [qq-chat-exporter](https://github.com/shuakami/qq-chat-exporter) 导出 QQ 群聊记录为 JSON。
+## 🚀 运行方式
 
 ### A. 本地前后端模式（推荐）
 1) 后端
@@ -82,6 +81,9 @@ OPENAI_BASE_URL = ""
 OPENAI_MODEL = ""
 ```
 
+## 🧭 数据获取
+- 推荐使用 [qq-chat-exporter](https://github.com/shuakami/qq-chat-exporter) 导出 QQ 群聊记录为 JSON。
+
 ## 🖥️ 前端可调参数
 - TOP_N、新词频次、PMI/熵阈值、合并频次/概率
 - 是否生成图片（需后端 Playwright + Chromium）
@@ -118,12 +120,12 @@ QQgroup-annual-report-analyzer/
 ```
 
 ## 📄 许可证
-MIT License
+MIT
 
 ## 🤝 贡献
 欢迎 Issue / PR！
 
 ## 致谢
-- [jieba](https://github.com/fxsjy/jieba) - 中文分词
-- [qq-chat-exporter](https://github.com/shuakami/qq-chat-exporter) - QQ聊天记录导出
-- [Playwright](https://playwright.dev/) - 网页截图
+- [jieba](https://github.com/fxsjy/jieba)
+- [qq-chat-exporter](https://github.com/shuakami/qq-chat-exporter)
+- [Playwright](https://playwright.dev/)

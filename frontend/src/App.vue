@@ -42,6 +42,10 @@
           <input type="checkbox" v-model="options.ENABLE_IMAGE_EXPORT" />
           <span class="tag">需服务器有 chromium</span>
         </div>
+        <div>
+          <label>生成 PNG</label><br />
+          <input type="checkbox" v-model="options.GENERATE_PNG" :disabled="!options.ENABLE_IMAGE_EXPORT" />
+        </div>
       </div>
     </div>
 
@@ -96,7 +100,7 @@ const options = reactive({
   MERGE_MIN_FREQ: 30,
   MERGE_MIN_PROB: 0.3,
   ENABLE_IMAGE_EXPORT: false,
-  GENERATE_PNG: false
+  GENERATE_PNG: true
 })
 
 const downloadsAvailable = computed(() => serverPaths.value.txt || serverPaths.value.html || serverPaths.value.png)
