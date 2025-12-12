@@ -246,6 +246,7 @@ class AICommentGenerator:
 
     def __init__(self):
         self.client = None
+        self.model = None
         self._init_client()
     
     def _init_client(self):
@@ -253,7 +254,7 @@ class AICommentGenerator:
         # 支持从环境变量读取API密钥
         api_key = os.getenv('OPENAI_API_KEY', cfg.OPENAI_API_KEY)
         base_url = os.getenv('OPENAI_BASE_URL', cfg.OPENAI_BASE_URL)
-        model = os.getenv('OPENAI_MODEL', cfg.OPENAI_MODEL)
+        self.model = os.getenv('OPENAI_MODEL', cfg.OPENAI_MODEL) or 'deepseek-chat'
         
         if not api_key or api_key == "sk-your-api-key-here":
             print("⚠️ 未配置OpenAI API Key，将跳过AI锐评")
@@ -268,6 +269,8 @@ class AICommentGenerator:
                 base_url=base_url,
                 http_client=httpx.Client(timeout=60.0)  # 增加超时
             )
+            
+            print(f"✅ AI客户端初始化成功，模型: {self.model}")
             
             # 调试信息
             if os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy'):
@@ -295,7 +298,7 @@ class AICommentGenerator:
 
         try:
             response = self.client.chat.completions.create(
-                model=cfg.OPENAI_MODEL,
+                model=self.model,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
@@ -494,6 +497,22 @@ class ImageGenerator:
     
     def _prepare_template_data(self):
         """准备模板数据"""
+        # 从 json_data 获取基本信息
+        group_name = self.json_data.get('groupName', '未知群组') if self.json_data else '未知群组'
+        year = self.json_data.get('year', 2024) if self.json_data else 2024
+        rankings = self.json_data.get('rankings', {}) if self.json_data else {}
+        ai_comment = self.ai_comments.get('overall', '') if self.ai_comments else ''
+        
+        if not self.selected_words:
+            # 没有选中的词时返回空数据
+            return {
+                'chat_name': group_name,
+                'message_count': self.json_data.get('messageCount', 0) if self.json_data else 0,
+                'selected_words': [],
+                'rankings': [],
+                'hour_data': [{'hour': h, 'count': 0, 'height': 3} for h in range(24)],
+                'peak_hour': 0,
+            }
         max_freq = max(w['freq'] for w in self.selected_words)
         min_freq = min(w['freq'] for w in self.selected_words)
         

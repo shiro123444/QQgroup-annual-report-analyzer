@@ -1,6 +1,16 @@
 <template>
   <div class="report-page-wrapper">
-  <div class="report-container" v-if="report">
+  <!-- 导出按钮 -->
+  <div class="export-btn-wrapper" v-if="report && !exporting">
+    <button class="export-btn" @click="exportImage">
+      📥 导出图片
+    </button>
+  </div>
+  <div class="export-btn-wrapper" v-if="exporting">
+    <div class="export-loading">导出中...</div>
+  </div>
+  
+  <div class="report-container" ref="reportContainer" v-if="report">
     <div class="stripe"></div>
     
     <!-- 头部 -->
@@ -175,12 +185,15 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import html2canvas from 'html2canvas'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 const report = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const exporting = ref(false)
+const reportContainer = ref(null)
 
 // 获取路由参数
 const getReportId = () => {
@@ -263,6 +276,34 @@ const getPeakHour = () => {
   return maxHour
 }
 
+// 导出为图片
+const exportImage = async () => {
+  if (!reportContainer.value || exporting.value) return
+  
+  exporting.value = true
+  
+  try {
+    const canvas = await html2canvas(reportContainer.value, {
+      backgroundColor: '#1a1a1a',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false
+    })
+    
+    // 创建下载链接
+    const link = document.createElement('a')
+    link.download = `${report.value.chat_name || '群聊'}_年度报告.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  } catch (err) {
+    console.error('导出失败:', err)
+    alert('导出失败，请重试')
+  } finally {
+    exporting.value = false
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
   loadReport()
@@ -275,13 +316,21 @@ onMounted(() => {
 
 /* 报告页面包装器 - 居中并设置背景 */
 .report-page-wrapper {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  background: #1a1a1a;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 0;
   margin: 0;
+  width: 100%;
+}
+
+/* 响应式：大屏幕添加内边距 */
+@media (min-width: 521px) {
+  .report-page-wrapper {
+    padding: 20px 0;
+  }
 }
 
 .loading-container, .error-container {
@@ -289,25 +338,78 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--black);
-  color: var(--cream);
+  background: #1a1a1a;
+  color: #F5F5DC;
+  width: 100%;
 }
 
 .loading {
   font-size: 18px;
-  color: var(--gold);
+  color: #DAA520;
 }
 
 .error-message {
-  color: var(--red);
+  color: #C41E3A;
   margin-bottom: 20px;
 }
 
 .error-container button {
   padding: 10px 20px;
-  background: var(--gold);
-  color: var(--black);
+  background: #DAA520;
+  color: #1a1a1a;
   border: none;
   cursor: pointer;
+}
+
+/* 导出按钮 */
+.export-btn-wrapper {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.export-btn {
+  background: linear-gradient(135deg, #DAA520, #f4c430);
+  color: #1a1a1a;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(218, 165, 32, 0.4);
+  transition: all 0.3s ease;
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(218, 165, 32, 0.5);
+}
+
+.export-btn:active {
+  transform: translateY(0);
+}
+
+.export-loading {
+  background: #333;
+  color: #DAA520;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 移动端导出按钮位置调整 */
+@media (max-width: 520px) {
+  .export-btn-wrapper {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .export-btn, .export-loading {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
 }
 </style>

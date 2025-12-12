@@ -11,10 +11,18 @@ def generate_demo_chat():
     包含虚构的消息数据，用于展示系统功能
     """
     
-    # 虚构的群成员
+    # 虚构的群成员 (uin, name)
     members = [
-        "张三", "李四", "王五", "赵六", "钱七",
-        "孙八", "周九", "吴十", "郑十一", "小明"
+        {"uin": 10001, "name": "张三"},
+        {"uin": 10002, "name": "李四"},
+        {"uin": 10003, "name": "王五"},
+        {"uin": 10004, "name": "赵六"},
+        {"uin": 10005, "name": "钱七"},
+        {"uin": 10006, "name": "孙八"},
+        {"uin": 10007, "name": "周九"},
+        {"uin": 10008, "name": "吴十"},
+        {"uin": 10009, "name": "郑十一"},
+        {"uin": 10010, "name": "小明"},
     ]
     
     # 虚构的热词
@@ -46,35 +54,40 @@ def generate_demo_chat():
         msg_time = start_date + timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
         
         # 随机发送者
-        sender = random.choice(members)
+        sender_info = random.choice(members)
         
         # 随机消息内容
         msg_type = random.choices(['text', 'image', 'voice'], weights=[0.8, 0.15, 0.05])[0]
         
         if msg_type == 'text':
-            # 生成文本消息
+            # 生成文本消息 - 增加热词出现频率
             parts = []
+            # 70% 概率添加热词
+            if random.random() < 0.7:
+                parts.append(random.choice(hot_words))
+            # 添加话题
             parts.append(random.choice(topics))
+            # 30% 概率再添加一个热词
             if random.random() < 0.3:
                 parts.append(random.choice(hot_words))
-            content = " ".join(parts)
+            text_content = " ".join(parts)
             
             message = {
                 "time": int(msg_time.timestamp()),
-                "sender": sender,
-                "content": [{"type": "text", "text": content}]
+                "sender": sender_info,
+                "content": {"text": text_content}
             }
         elif msg_type == 'image':
             message = {
                 "time": int(msg_time.timestamp()),
-                "sender": sender,
-                "content": [{"type": "image", "url": "https://example.com/image.jpg"}]
+                "sender": sender_info,
+                "content": {"text": "[图片]"}
             }
         else:  # voice
             message = {
                 "time": int(msg_time.timestamp()),
-                "sender": sender,
-                "content": [{"type": "voice", "duration": random.randint(1, 60)}]
+                "sender": sender_info,
+                "content": {"text": "[语音]"}
             }
         
         messages.append(message)

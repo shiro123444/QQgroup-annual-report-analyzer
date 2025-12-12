@@ -9,6 +9,15 @@ body {
   color: #1f2937;
 }
 
+/* 报告页面深色背景 - 通过路由匹配 */
+body:has(.report-page-wrapper) {
+  background: #1a1a1a !important;
+}
+
+html:has(.report-page-wrapper) {
+  background: #1a1a1a !important;
+}
+
 a {
   color: #2563eb;
 }
