@@ -11,8 +11,9 @@ import os
 import json
 import uuid
 from typing import List, Dict
+from datetime import datetime
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -94,14 +95,57 @@ def generate_ai_comments(selected_word_objects: List[Dict]) -> Dict[str, str]:
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    """健康检查"""
-    return jsonify({
+    """健康检查 - 提供详细的服务状态信息"""
+    health_status = {
         "ok": True,
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
         "services": {
-            "oss": oss_service is not None,
-            "database": db_service is not None
+            "oss": {
+                "enabled": oss_service is not None,
+                "status": "healthy" if oss_service is not None else "disabled"
+            },
+            "database": {
+                "enabled": db_service is not None,
+                "status": "unknown"
+            }
         }
-    })
+    }
+    
+    # 检查数据库连接
+    if db_service:
+        try:
+            # 尝试执行简单查询
+            conn = db_service._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            conn.close()
+            health_status["services"]["database"]["status"] = "healthy"
+        except Exception as e:
+            health_status["ok"] = False
+            health_status["services"]["database"]["status"] = "unhealthy"
+            health_status["services"]["database"]["error"] = str(e)
+    
+    # 检查存储目录
+    try:
+        base_dir = os.path.join(PROJECT_ROOT, "runtime_outputs")
+        temp_dir = os.path.join(base_dir, "temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        health_status["services"]["storage"] = {
+            "status": "healthy",
+            "path": temp_dir
+        }
+    except Exception as e:
+        health_status["ok"] = False
+        health_status["services"]["storage"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+    
+    status_code = 200 if health_status["ok"] else 503
+    return jsonify(health_status), status_code
 
 
 def allowed_file(filename):
@@ -420,6 +464,75 @@ def process_report_data_for_frontend(report):
         "peak_hour": template_data['peak_hour'],
         "created_at": str(report['created_at'])
     }
+
+
+@app.route("/api/demo", methods=["GET"])
+def get_demo_file():
+    """
+    提供演示数据文件供下载
+    用户可以下载这个文件快速体验系统功能
+    """
+    demo_file_path = os.path.join(PROJECT_ROOT, "demo_chat.json")
+    
+    # 如果演示文件不存在，动态生成
+    if not os.path.exists(demo_file_path):
+        try:
+            import subprocess
+            subprocess.run(
+                ["python", os.path.join(PROJECT_ROOT, "generate_demo_data.py")],
+                cwd=PROJECT_ROOT,
+                check=True,
+                capture_output=True
+            )
+        except Exception as e:
+            return jsonify({"error": f"生成演示数据失败: {e}"}), 500
+    
+    if os.path.exists(demo_file_path):
+        return send_file(
+            demo_file_path,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name='demo_chat.json'
+        )
+    else:
+        return jsonify({"error": "演示文件不存在"}), 404
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """404 错误处理"""
+    return jsonify({
+        "error": "接口不存在",
+        "message": "请检查 API 路径是否正确",
+        "available_endpoints": [
+            "GET /api/health - 健康检查",
+            "POST /api/upload - 上传并分析",
+            "POST /api/finalize - 完成报告",
+            "GET /api/reports - 查询报告列表",
+            "GET /api/reports/{id} - 获取报告详情",
+            "DELETE /api/reports/{id} - 删除报告",
+            "GET /api/demo - 下载演示数据"
+        ]
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """500 错误处理"""
+    return jsonify({
+        "error": "服务器内部错误",
+        "message": "请稍后重试或联系管理员"
+    }), 500
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """文件过大错误处理"""
+    max_size = app.config.get('MAX_CONTENT_LENGTH', 50 * 1024 * 1024) // (1024 * 1024)
+    return jsonify({
+        "error": "文件过大",
+        "message": f"文件大小不能超过 {max_size} MB"
+    }), 413
 
 
 if __name__ == "__main__":
