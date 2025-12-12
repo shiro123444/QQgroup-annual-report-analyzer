@@ -102,6 +102,34 @@ python main.py demo_chat.json
 
 或在线上版直接上传生成的 `demo_chat.json` 文件体验完整流程。
 
+## 📖 文档导航
+
+我们提供了完整的文档帮助你快速上手：
+
+| 文档 | 说明 |
+|------|------|
+| 📘 [WEB_DEPLOYMENT.md](./WEB_DEPLOYMENT.md) | **Web 版快速部署指南** - 5 分钟上手 |
+| 📗 [DOCKER_GUIDE.md](./DOCKER_GUIDE.md) | **Docker 部署详解** - 最简单的部署方式 |
+| 📙 [USAGE_GUIDE.md](./USAGE_GUIDE.md) | **完整使用教程** - 从入门到精通 |
+| 📕 [DEPLOYMENT.md](./DEPLOYMENT.md) | **详细部署文档** - 高级配置和优化 |
+| 📝 [CHANGELOG.md](./CHANGELOG.md) | **更新日志** - 版本历史和新功能 |
+| 🤝 [CONTRIBUTING.md](./CONTRIBUTING.md) | **贡献指南** - 如何参与开发 |
+
+## 🛠️ 常用命令
+
+使用 Makefile 简化操作：
+
+```bash
+make help      # 查看所有命令
+make deploy    # 一键部署（构建+启动）
+make up        # 启动服务
+make down      # 停止服务
+make logs      # 查看日志
+make monitor   # 运行监控脚本
+make backup    # 备份数据库
+make clean     # 清理临时文件
+```
+
 ## 📖 详细文档
 
 ### 系统架构
@@ -272,14 +300,44 @@ FLASK_PORT=5000
 - [x] 历史记录管理
 - [x] Docker 一键部署
 - [x] 演示数据生成器
+- [x] 完整文档体系
+- [x] 监控和维护工具
 - [ ] 用户认证系统
 - [ ] 报告分享功能优化
 - [ ] 数据可视化增强
 - [ ] 移动端优化
 
+## ❓ 常见问题
+
+### 如何快速开始？
+
+最快的方式是使用 Docker：
+```bash
+./quick-start.sh  # 一键启动
+```
+详见 [DOCKER_GUIDE.md](./DOCKER_GUIDE.md)
+
+### 需要配置 OSS 吗？
+
+**不需要！** 默认使用本地存储，可选配置 OSS。
+
+### 支持哪些数据格式？
+
+使用 [qq-chat-exporter](https://github.com/Yiyuery/qq-chat-exporter) 导出的 JSON 格式。
+
+### 如何获取演示数据？
+
+运行 `python generate_demo_data.py` 即可生成。
+
+### 更多问题？
+
+查看 [USAGE_GUIDE.md](./USAGE_GUIDE.md#常见问题) 获取完整的故障排查指南。
+
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
+
+详细贡献指南请查看 [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 📄 许可证
 
@@ -289,15 +347,19 @@ MIT License
 
 - [qq-chat-exporter](https://github.com/Yiyuery/qq-chat-exporter) - QQ 聊天记录导出工具
 - [jieba](https://github.com/fxsjy/jieba) - 中文分词库
+- 所有贡献者和使用者
 
 ## 📮 联系方式
 
-- GitHub: [@ZiHuixi](https://github.com/ZiHuixi)
-- 项目地址: https://github.com/ZiHuixi/QQgroup-annual-report-analyzer
+- 项目地址: https://github.com/shiro123444/QQgroup-annual-report-analyzer
+- 问题反馈: [GitHub Issues](https://github.com/shiro123444/QQgroup-annual-report-analyzer/issues)
+- 贡献代码: [Pull Requests](https://github.com/shiro123444/QQgroup-annual-report-analyzer/pulls)
 
 ## 🌟 Star History
 
 如果这个项目对你有帮助，请给个 Star ⭐️
+
+[![Star History Chart](https://api.star-history.com/svg?repos=shiro123444/QQgroup-annual-report-analyzer&type=Date)](https://star-history.com/#shiro123444/QQgroup-annual-report-analyzer&Date)
 
 ---
 
