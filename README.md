@@ -1,10 +1,11 @@
 # QQ群年度报告分析器
 
-### ❗❗本地功能现已基本完善，但线上版尚未完成还在画饼❗❗
-只是没做完先睡了（
+### 🎉 线上版现已完善，支持一键 Docker 部署！
 
 ---
 一个功能强大的 QQ 群聊天记录分析工具，可以生成精美的年度报告。现已支持**线上版**，提供完整的 Web 服务！
+
+> 💡 **新功能**：现在支持 Docker Compose 一键部署，5 分钟内即可搭建完整的线上服务！
 
 ## ✨ 特性
 
@@ -17,16 +18,45 @@
 - ⚙️ **高度可定制**：丰富的配置参数，满足不同需求
 
 ### 🌐 线上版新功能
-- ☁️ **云存储集成**：自动上传到阿里云 OSS
+- 🐳 **一键部署**：Docker Compose 快速部署，5 分钟搭建完整服务
+- ☁️ **云存储集成**：支持阿里云 OSS 或本地存储（可选）
 - 🎯 **交互式选词**：用户可从热词列表中自主选择展示词汇
 - 💾 **数据持久化**：MySQL 数据库永久存储报告
 - 📜 **历史记录管理**：随时查看、搜索、删除历史报告
 - 🔗 **在线分享**：生成可分享的报告链接
 - 📱 **响应式设计**：完美适配各种设备
+- 🎨 **开箱即用**：提供演示数据，无需上传即可体验
 
 ## 🚀 快速开始
 
-### 本地版使用
+### 🌐 线上版部署（推荐）
+
+#### 方式一：一键 Docker 部署（最简单）
+
+**前置要求**：安装 Docker 和 Docker Compose
+
+```bash
+# 克隆项目
+git clone https://github.com/shiro123444/QQgroup-annual-report-analyzer.git
+cd QQgroup-annual-report-analyzer
+
+# 一键启动（Linux/Mac）
+chmod +x quick-start.sh
+./quick-start.sh
+
+# 或使用 Windows
+quick-start.bat
+```
+
+完成！访问 http://localhost 即可使用 🎉
+
+> 📖 详细部署指南请查看 [WEB_DEPLOYMENT.md](./WEB_DEPLOYMENT.md)
+
+#### 方式二：手动部署
+
+完整的手动部署指南请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+### 💻 本地版使用
 
 #### 1. 安装依赖
 
@@ -58,34 +88,47 @@ python main.py
 
 生成的报告在 `runtime_outputs` 目录下。
 
-### 线上版部署
+### 🎨 快速体验（无需上传数据）
 
-完整的部署指南请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)
-
-#### 快速本地测试
+想快速体验系统功能？使用演示数据生成器：
 
 ```bash
-# 1. 配置后端
-cd backend
-cp .env.example .env
-# 编辑 .env 填入数据库和 OSS 配置
+# 生成演示数据
+python generate_demo_data.py
 
-# 2. 安装依赖
-pip install -r requirements.txt
-
-# 3. 初始化数据库
-python init_db.py
-
-# 4. 启动后端
-python app.py
-
-# 5. 在新终端启动前端
-cd ../frontend
-npm install
-npm run dev
+# 使用演示数据运行分析
+python main.py demo_chat.json
 ```
 
-访问 http://localhost:5173 即可使用！
+或在线上版直接上传生成的 `demo_chat.json` 文件体验完整流程。
+
+## 📖 文档导航
+
+我们提供了完整的文档帮助你快速上手：
+
+| 文档 | 说明 |
+|------|------|
+| 📘 [WEB_DEPLOYMENT.md](./WEB_DEPLOYMENT.md) | **Web 版快速部署指南** - 5 分钟上手 |
+| 📗 [DOCKER_GUIDE.md](./DOCKER_GUIDE.md) | **Docker 部署详解** - 最简单的部署方式 |
+| 📙 [USAGE_GUIDE.md](./USAGE_GUIDE.md) | **完整使用教程** - 从入门到精通 |
+| 📕 [DEPLOYMENT.md](./DEPLOYMENT.md) | **详细部署文档** - 高级配置和优化 |
+| 📝 [CHANGELOG.md](./CHANGELOG.md) | **更新日志** - 版本历史和新功能 |
+| 🤝 [CONTRIBUTING.md](./CONTRIBUTING.md) | **贡献指南** - 如何参与开发 |
+
+## 🛠️ 常用命令
+
+使用 Makefile 简化操作：
+
+```bash
+make help      # 查看所有命令
+make deploy    # 一键部署（构建+启动）
+make up        # 启动服务
+make down      # 停止服务
+make logs      # 查看日志
+make monitor   # 运行监控脚本
+make backup    # 备份数据库
+make clean     # 清理临时文件
+```
 
 ## 📖 详细文档
 
@@ -239,8 +282,9 @@ FLASK_PORT=5000
 ### 线上版
 - **后端**：Flask, pymysql, oss2, python-dotenv
 - **前端**：Vue 3, Vite, Axios
-- **存储**：阿里云 OSS
-- **数据库**：MySQL 5.7+
+- **存储**：阿里云 OSS（可选）或本地存储
+- **数据库**：MySQL 5.7+/8.0+
+- **部署**：Docker, Docker Compose, Nginx
 
 ## 📝 开发计划
 
@@ -254,14 +298,46 @@ FLASK_PORT=5000
 - [x] 云存储集成
 - [x] 用户选词功能
 - [x] 历史记录管理
+- [x] Docker 一键部署
+- [x] 演示数据生成器
+- [x] 完整文档体系
+- [x] 监控和维护工具
 - [ ] 用户认证系统
 - [ ] 报告分享功能优化
 - [ ] 数据可视化增强
 - [ ] 移动端优化
 
+## ❓ 常见问题
+
+### 如何快速开始？
+
+最快的方式是使用 Docker：
+```bash
+./quick-start.sh  # 一键启动
+```
+详见 [DOCKER_GUIDE.md](./DOCKER_GUIDE.md)
+
+### 需要配置 OSS 吗？
+
+**不需要！** 默认使用本地存储，可选配置 OSS。
+
+### 支持哪些数据格式？
+
+使用 [qq-chat-exporter](https://github.com/Yiyuery/qq-chat-exporter) 导出的 JSON 格式。
+
+### 如何获取演示数据？
+
+运行 `python generate_demo_data.py` 即可生成。
+
+### 更多问题？
+
+查看 [USAGE_GUIDE.md](./USAGE_GUIDE.md#常见问题) 获取完整的故障排查指南。
+
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
+
+详细贡献指南请查看 [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 📄 许可证
 
@@ -271,15 +347,19 @@ MIT License
 
 - [qq-chat-exporter](https://github.com/Yiyuery/qq-chat-exporter) - QQ 聊天记录导出工具
 - [jieba](https://github.com/fxsjy/jieba) - 中文分词库
+- 所有贡献者和使用者
 
 ## 📮 联系方式
 
-- GitHub: [@ZiHuixi](https://github.com/ZiHuixi)
-- 项目地址: https://github.com/ZiHuixi/QQgroup-annual-report-analyzer
+- 项目地址: https://github.com/shiro123444/QQgroup-annual-report-analyzer
+- 问题反馈: [GitHub Issues](https://github.com/shiro123444/QQgroup-annual-report-analyzer/issues)
+- 贡献代码: [Pull Requests](https://github.com/shiro123444/QQgroup-annual-report-analyzer/pulls)
 
 ## 🌟 Star History
 
 如果这个项目对你有帮助，请给个 Star ⭐️
+
+[![Star History Chart](https://api.star-history.com/svg?repos=shiro123444/QQgroup-annual-report-analyzer&type=Date)](https://star-history.com/#shiro123444/QQgroup-annual-report-analyzer&Date)
 
 ---
 

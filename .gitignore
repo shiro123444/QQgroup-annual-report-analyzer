@@ -53,6 +53,10 @@ frontend/.DS_Store
 !tsconfig*.json
 !.vscode/*.json
 
+# 备份文件
+backups/
+*.sql
+
 # 日志
 *.log
 
@@ -63,3 +67,10 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.temp
+
+# Docker
+.docker/
+
+# 演示数据
+demo_chat.json
+
