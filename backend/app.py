@@ -478,14 +478,19 @@ def get_demo_file():
     if not os.path.exists(demo_file_path):
         try:
             import subprocess
-            subprocess.run(
+            result = subprocess.run(
                 ["python", os.path.join(PROJECT_ROOT, "generate_demo_data.py")],
                 cwd=PROJECT_ROOT,
                 check=True,
-                capture_output=True
+                capture_output=True,
+                text=True
             )
+        except subprocess.CalledProcessError as e:
+            return jsonify({
+                "error": f"生成演示数据失败: {e.stderr or e.stdout or str(e)}"
+            }), 500
         except Exception as e:
-            return jsonify({"error": f"生成演示数据失败: {e}"}), 500
+            return jsonify({"error": f"生成演示数据失败: {str(e)}"}), 500
     
     if os.path.exists(demo_file_path):
         return send_file(

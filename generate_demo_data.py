@@ -33,7 +33,9 @@ def generate_demo_chat():
     
     # 生成消息
     messages = []
-    start_date = datetime(2023, 1, 1)
+    # 使用当前年份的数据更真实
+    current_year = datetime.now().year
+    start_date = datetime(current_year, 1, 1)
     
     for i in range(5000):  # 生成 5000 条消息
         # 随机时间

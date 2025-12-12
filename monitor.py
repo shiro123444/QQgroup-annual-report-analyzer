@@ -12,6 +12,9 @@ import time
 import requests
 from datetime import datetime
 
+# 定义项目根目录
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 
 def check_service_health(base_url):
     """检查服务健康状态"""
@@ -140,7 +143,7 @@ def monitor():
     
     # 检查运行时目录
     print("\n📁 运行时目录:")
-    runtime_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'runtime_outputs')
+    runtime_dir = os.path.join(PROJECT_ROOT, 'runtime_outputs')
     if os.path.exists(runtime_dir):
         try:
             file_count = sum([len(files) for r, d, files in os.walk(runtime_dir)])

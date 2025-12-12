@@ -50,10 +50,16 @@ if [ ! -f ".env" ]; then
         SECRET_KEY=$(openssl rand -hex 32)
         MYSQL_PASSWORD=$(openssl rand -base64 16 | tr -d '=+/')
         
-        # 更新 .env 文件
-        sed -i.bak "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=${SECRET_KEY}/" .env
-        sed -i.bak "s/MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${MYSQL_PASSWORD}/" .env
-        rm -f .env.bak
+        # 更新 .env 文件 (跨平台兼容)
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            sed -i '' "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=${SECRET_KEY}/" .env
+            sed -i '' "s/MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${MYSQL_PASSWORD}/" .env
+        else
+            # Linux
+            sed -i "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=${SECRET_KEY}/" .env
+            sed -i "s/MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${MYSQL_PASSWORD}/" .env
+        fi
         
         echo "✅ 已自动生成安全的密钥"
     else
